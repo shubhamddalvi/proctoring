@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Exam Dashboard</title>
+    <link rel="stylesheet" href="../static/style.css">
+    <script>
+        let isFaceVerified = false;
+
+        window.onload = () => {
+            const video = document.getElementById('video');
+            navigator.mediaDevices.getUserMedia({ video: true })
+                .then(stream => {
+                    video.srcObject = stream;
+                })
+                .catch(err => {
+                    console.log('Error accessing webcam: ', err);
+                });
+
+            // Periodically check the face every 3 seconds
+            setInterval(checkFace, 3000);
+        };
+
+        function checkFace() {
+            const video = document.getElementById('video');
+            const canvas = document.createElement('canvas');
+            const ctx = canvas.getContext('2d');
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+            const imageData = canvas.toDataURL('image/png');
+            
+            // Send image data to backend for verification
+            fetch('/proctoring_tool/cgi-bin/track_face.py', {
+                method: 'POST',
+                body: JSON.stringify({ image: imageData }),
+                headers: { 'Content-Type': 'application/json' }
+            }).then(response => response.json())
+              .then(data => {
+                if (data.success) {
+                    isFaceVerified = true;
+                } else {
+                    isFaceVerified = false;
+                    alert("Face verification failed. Please return to the frame.");
+                }
+              });
+        }
+    </script>
+</head>
+<body>
+    <h2>Exam Dashboard</h2>
+    <video id="video" width="320" height="240" autoplay></video>
+    <br><br>
+    <form action="/proctoring_tool/cgi-bin/exam_submit.py" method="post">
+        <label>Question 1: 2 + 2 = ?</label><br>
+        <input type="text" name="q1" required><br>
+        <input type="submit" value="Submit">
+    </form>
+</body>
+</html>
